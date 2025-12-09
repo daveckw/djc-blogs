@@ -1,94 +1,128 @@
-import type { SWRConfiguration } from 'swr';
 import type { IPostItem } from 'src/types/blog';
 
-import useSWR from 'swr';
-import { useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 
-import { fetcher, endpoints } from 'src/lib/axios';
-
-// ----------------------------------------------------------------------
-
-const swrOptions: SWRConfiguration = {
-  revalidateIfStale: false,
-  revalidateOnFocus: false,
-  revalidateOnReconnect: false,
-};
+import {
+  getPosts,
+  getPost,
+  getPostByTitle,
+  getLatestPosts,
+  searchPosts,
+  subscribeToPost,
+} from 'src/functions/blogFunctions';
 
 // ----------------------------------------------------------------------
-
-type PostsData = {
-  posts: IPostItem[];
-};
 
 export function useGetPosts() {
-  const url = endpoints.post.list;
+  const [posts, setPosts] = useState<IPostItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
 
-  const { data, isLoading, error, isValidating } = useSWR<PostsData>(url, fetcher, {
-    ...swrOptions,
-  });
+  useEffect(() => {
+    // Subscribe to real-time updates
+    const unsubscribe = subscribeToPost((updatedPosts) => {
+      setPosts(updatedPosts);
+      setIsLoading(false);
+    });
+
+    // Cleanup subscription on unmount
+    return () => unsubscribe();
+  }, []);
 
   const memoizedValue = useMemo(
     () => ({
-      posts: data?.posts || [],
+      posts,
       postsLoading: isLoading,
       postsError: error,
-      postsValidating: isValidating,
-      postsEmpty: !isLoading && !data?.posts.length,
+      postsValidating: false,
+      postsEmpty: !isLoading && !posts.length,
     }),
-    [data?.posts, error, isLoading, isValidating]
+    [posts, error, isLoading]
   );
 
   return memoizedValue;
 }
 
 // ----------------------------------------------------------------------
-
-type PostData = {
-  post: IPostItem;
-};
 
 export function useGetPost(title: string) {
-  const url = title ? [endpoints.post.details, { params: { title } }] : '';
+  const [post, setPost] = useState<IPostItem | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
 
-  const { data, isLoading, error, isValidating } = useSWR<PostData>(url, fetcher, {
-    ...swrOptions,
-  });
+  useEffect(() => {
+    if (!title) {
+      setIsLoading(false);
+      return;
+    }
+
+    const fetchPost = async () => {
+      try {
+        setIsLoading(true);
+        const postData = await getPostByTitle(title);
+        setPost(postData);
+      } catch (err) {
+        setError(err as Error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchPost();
+  }, [title]);
 
   const memoizedValue = useMemo(
     () => ({
-      post: data?.post,
+      post,
       postLoading: isLoading,
       postError: error,
-      postValidating: isValidating,
+      postValidating: false,
     }),
-    [data?.post, error, isLoading, isValidating]
+    [post, error, isLoading]
   );
 
   return memoizedValue;
 }
 
 // ----------------------------------------------------------------------
-
-type LatestPostsData = {
-  latestPosts: IPostItem[];
-};
 
 export function useGetLatestPosts(title: string) {
-  const url = title ? [endpoints.post.latest, { params: { title } }] : '';
+  const [latestPosts, setLatestPosts] = useState<IPostItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
 
-  const { data, isLoading, error, isValidating } = useSWR<LatestPostsData>(url, fetcher, {
-    ...swrOptions,
-  });
+  useEffect(() => {
+    const fetchLatestPosts = async () => {
+      try {
+        setIsLoading(true);
+        // First, get the current post ID by title if provided
+        let excludePostId: string | undefined;
+        if (title) {
+          const currentPost = await getPostByTitle(title);
+          excludePostId = currentPost?.id;
+        }
+
+        const posts = await getLatestPosts(excludePostId, 5);
+        setLatestPosts(posts);
+      } catch (err) {
+        setError(err as Error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchLatestPosts();
+  }, [title]);
 
   const memoizedValue = useMemo(
     () => ({
-      latestPosts: data?.latestPosts || [],
+      latestPosts,
       latestPostsLoading: isLoading,
       latestPostsError: error,
-      latestPostsValidating: isValidating,
-      latestPostsEmpty: !isLoading && !data?.latestPosts.length,
+      latestPostsValidating: false,
+      latestPostsEmpty: !isLoading && !latestPosts.length,
     }),
-    [data?.latestPosts, error, isLoading, isValidating]
+    [latestPosts, error, isLoading]
   );
 
   return memoizedValue;
@@ -96,27 +130,47 @@ export function useGetLatestPosts(title: string) {
 
 // ----------------------------------------------------------------------
 
-type SearchResultsData = {
-  results: IPostItem[];
-};
-
 export function useSearchPosts(query: string) {
-  const url = query ? [endpoints.post.search, { params: { query } }] : '';
+  const [searchResults, setSearchResults] = useState<IPostItem[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
 
-  const { data, isLoading, error, isValidating } = useSWR<SearchResultsData>(url, fetcher, {
-    ...swrOptions,
-    keepPreviousData: true,
-  });
+  useEffect(() => {
+    if (!query) {
+      setSearchResults([]);
+      setIsLoading(false);
+      return;
+    }
+
+    const performSearch = async () => {
+      try {
+        setIsLoading(true);
+        const results = await searchPosts(query);
+        setSearchResults(results);
+      } catch (err) {
+        setError(err as Error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    // Debounce search
+    const timeoutId = setTimeout(() => {
+      performSearch();
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [query]);
 
   const memoizedValue = useMemo(
     () => ({
-      searchResults: data?.results || [],
+      searchResults,
       searchLoading: isLoading,
       searchError: error,
-      searchValidating: isValidating,
-      searchEmpty: !isLoading && !isValidating && !data?.results.length,
+      searchValidating: false,
+      searchEmpty: !isLoading && !searchResults.length && !!query,
     }),
-    [data?.results, error, isLoading, isValidating]
+    [searchResults, error, isLoading, query]
   );
 
   return memoizedValue;

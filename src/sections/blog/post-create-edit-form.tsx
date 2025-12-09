@@ -1,10 +1,13 @@
 import type { IPostItem } from 'src/types/blog';
 
 import { z as zod } from 'zod';
-import { useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useBoolean } from 'minimal-shared/hooks';
 import { zodResolver } from '@hookform/resolvers/zod';
+
+import { useAuthContext } from 'src/auth/hooks/use-auth-context';
+import { addPost, updatePost } from 'src/functions/blogFunctions';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -53,10 +56,13 @@ type Props = {
 
 export function PostCreateEditForm({ currentPost }: Props) {
   const router = useRouter();
+  const { user } = useAuthContext();
 
   const showPreview = useBoolean();
   const openDetails = useBoolean(true);
   const openProperties = useBoolean(true);
+  const [publish, setPublish] = useState(true);
+  const [enableComments, setEnableComments] = useState(true);
 
   const defaultValues: PostCreateSchemaType = {
     title: '',
@@ -86,16 +92,44 @@ export function PostCreateEditForm({ currentPost }: Props) {
 
   const values = watch();
 
+  // Update publish state when editing an existing post
+  useEffect(() => {
+    if (currentPost) {
+      setPublish(currentPost.publish === 'published');
+    }
+  }, [currentPost]);
+
   const onSubmit = handleSubmit(async (data) => {
     try {
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      if (!user) {
+        toast.error('You must be logged in to create a post');
+        return;
+      }
+
+      const author = {
+        name: user.displayName || user.name || 'Anonymous',
+        email: user.email || '',
+        avatarUrl: user.photoURL || user.avatar || '',
+      };
+
+      if (currentPost) {
+        // Update existing post
+        await updatePost(currentPost.id, data, publish);
+        toast.success('Post updated successfully!');
+      } else {
+        // Create new post
+        const postId = await addPost(data, author, publish);
+        toast.success('Post created successfully!');
+        console.info('Created post with ID:', postId);
+      }
+
       reset();
       showPreview.onFalse();
-      toast.success(currentPost ? 'Update success!' : 'Create success!');
       router.push(paths.dashboard.post.root);
       console.info('DATA', data);
     } catch (error) {
       console.error(error);
+      toast.error(currentPost ? 'Failed to update post' : 'Failed to create post');
     }
   });
 
@@ -193,7 +227,13 @@ export function PostCreateEditForm({ currentPost }: Props) {
 
           <FormControlLabel
             label="Enable comments"
-            control={<Switch defaultChecked slotProps={{ input: { id: 'comments-switch' } }} />}
+            control={
+              <Switch
+                checked={enableComments}
+                onChange={(e) => setEnableComments(e.target.checked)}
+                slotProps={{ input: { id: 'comments-switch' } }}
+              />
+            }
           />
         </Stack>
       </Collapse>
@@ -211,7 +251,13 @@ export function PostCreateEditForm({ currentPost }: Props) {
     >
       <FormControlLabel
         label="Publish"
-        control={<Switch defaultChecked slotProps={{ input: { id: 'publish-switch' } }} />}
+        control={
+          <Switch
+            checked={publish}
+            onChange={(e) => setPublish(e.target.checked)}
+            slotProps={{ input: { id: 'publish-switch' } }}
+          />
+        }
         sx={{ pl: 3, flexGrow: 1 }}
       />
 

@@ -4,8 +4,7 @@ import type { IPostItem } from 'src/types/blog';
 import { kebabCase } from 'es-toolkit';
 
 import { CONFIG } from 'src/global-config';
-import { getPost } from 'src/actions/blog-ssr';
-import axios, { endpoints } from 'src/lib/axios';
+import { getPost, getPosts } from 'src/actions/blog-ssr';
 
 import { PostDetailsView } from 'src/sections/blog/view';
 
@@ -39,8 +38,8 @@ export default async function Page({ params }: Props) {
  * NOTE: Remove all "generateStaticParams()" functions if not using static exports.
  */
 export async function generateStaticParams() {
-  const res = await axios.get(endpoints.post.list);
-  const data: IPostItem[] = CONFIG.isStaticExport ? res.data.posts : res.data.posts.slice(0, 1);
+  const { posts } = await getPosts();
+  const data: IPostItem[] = CONFIG.isStaticExport ? posts : posts.slice(0, 1);
 
   return data.map((post) => ({
     title: kebabCase(post.title),

@@ -160,9 +160,10 @@ function HomeHero({ sx, ...other }: BoxProps) {
               variants={varFade('inUp', { distance: 24 })}
               sx={{ mb: 4, color: 'text.secondary', maxWidth: 540 }}
             >
-              DJC is a <strong>Malaysia-born AI and systems company</strong> obsessed with one thing:
-              turning chaotic business operations into <strong>predictable, scalable "machines"</strong>.
-              This blog is where we document the thinking, experiments and scars along the journey.
+              DJC is a <strong>Malaysia-born AI and systems company</strong> obsessed with one
+              thing: turning chaotic business operations into{' '}
+              <strong>predictable, scalable "machines"</strong>. This blog is where we document the
+              thinking, experiments and scars along the journey.
             </Typography>
 
             <Stack
@@ -225,7 +226,12 @@ function HomeHero({ sx, ...other }: BoxProps) {
                 background: `linear-gradient(145deg, ${varAlpha(theme.vars.palette.primary.mainChannel, 0.08)}, ${varAlpha(theme.vars.palette.background.defaultChannel, 0.95)})`,
               })}
             >
-              <Stack direction="row" justifyContent="space-between" alignItems="flex-start" sx={{ mb: 3 }}>
+              <Stack
+                direction="row"
+                justifyContent="space-between"
+                alignItems="flex-start"
+                sx={{ mb: 3 }}
+              >
                 <Typography variant="overline" color="text.secondary">
                   Founder&apos;s Note
                 </Typography>
@@ -238,8 +244,8 @@ function HomeHero({ sx, ...other }: BoxProps) {
                 <Grid size={7}>
                   <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.7 }}>
                     DJC started with a simple frustration:{' '}
-                    <strong>too many talented people are trapped doing low-value work</strong>. We believe
-                    the future belongs to those who know how to combine{' '}
+                    <strong>too many talented people are trapped doing low-value work</strong>. We
+                    believe the future belongs to those who know how to combine{' '}
                     <strong>AI, systems and human judgment</strong> into one powerful engine.
                   </Typography>
                   <Stack direction="row" flexWrap="wrap" gap={1} sx={{ mt: 2 }}>
@@ -374,8 +380,8 @@ function HomePhilosophy({ sx, ...other }: BoxProps) {
               variants={varFade('inUp', { distance: 24 })}
               sx={{ color: 'text.secondary' }}
             >
-              Technology is easy. People, systems and discipline are hard. The DJC philosophy is a set of
-              principles that guide how we design products, grow teams and serve clients.
+              Technology is easy. People, systems and discipline are hard. The DJC philosophy is a
+              set of principles that guide how we design products, grow teams and serve clients.
             </Typography>
           </Grid>
         </Grid>
@@ -396,13 +402,17 @@ function HomePhilosophy({ sx, ...other }: BoxProps) {
               </Typography>
               <Typography variant="body1" sx={{ color: 'text.secondary', lineHeight: 1.8, mb: 2 }}>
                 DJC exists because we believe{' '}
-                <strong>ordinary people can create extraordinary results</strong> when three things are in
-                place: <strong>clarity of direction, discipline of execution, and leverage from AI & systems</strong>.
+                <strong>ordinary people can create extraordinary results</strong> when three things
+                are in place:{' '}
+                <strong>
+                  clarity of direction, discipline of execution, and leverage from AI & systems
+                </strong>
+                .
               </Typography>
               <Typography variant="body1" sx={{ color: 'text.secondary', lineHeight: 1.8, mb: 2 }}>
-                We are not interested in "shiny toy" AI demos. We care about <strong>outcomes</strong>: more
-                appointments set, more sales closed, more time given back to people so they can think,
-                create and lead.
+                We are not interested in "shiny toy" AI demos. We care about{' '}
+                <strong>outcomes</strong>: more appointments set, more sales closed, more time given
+                back to people so they can think, create and lead.
               </Typography>
               <Typography variant="body1" sx={{ color: 'text.secondary', lineHeight: 1.8 }}>
                 Every article here is written with one question in mind:{' '}
@@ -463,16 +473,7 @@ function HomeBlogList({ sx, ...other }: BoxProps) {
               txtGradient="& sales calls"
             />
           </Grid>
-          <Grid size={{ xs: 12, md: 6 }}>
-            <Typography
-              component={m.p}
-              variants={varFade('inUp', { distance: 24 })}
-              sx={{ color: 'text.secondary' }}
-            >
-              Here are some starting points. Replace these with real posts later, or connect this page to
-              your CMS / blog engine.
-            </Typography>
-          </Grid>
+          <Grid size={{ xs: 12, md: 6 }} />
         </Grid>
 
         <Grid container spacing={3}>

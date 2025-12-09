@@ -1,90 +1,138 @@
 'use client';
 
-import type { AuthState } from '../../types';
+import type { User as FirebaseUser } from 'firebase/auth';
+import type { UserType } from 'functions/types/userTypes';
+import type { DocumentSnapshot } from 'firebase/firestore';
 
-import { doc, getDoc } from 'firebase/firestore';
-import { onAuthStateChanged } from 'firebase/auth';
-import { useSetState } from 'minimal-shared/hooks';
-import { useMemo, useEffect, useCallback } from 'react';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { useMemo, useState, useEffect } from 'react';
+import { getAuth, onAuthStateChanged } from 'firebase/auth';
 
-import axios from 'src/lib/axios';
-import { db, auth } from 'src/lib/firebase';
+import { db } from 'src/lib/firebase';
+import mapDocSnapshot from 'src/utility-functions/mapDocSnapshot';
 
 import { AuthContext } from '../auth-context';
-
-// ----------------------------------------------------------------------
-
-/**
- * NOTE:
- * We only build demo at basic level.
- * Customer will need to do some extra handling yourself if you want to extend the logic and other features...
- */
 
 type Props = {
   children: React.ReactNode;
 };
 
+/* Utility functions */
+// Clear local user data
+const clearLocalUser = (setUser: (user: UserType | null) => void) => {
+  setUser(null);
+  localStorage.removeItem('user');
+  localStorage.removeItem('authUser');
+};
+/* Utility functions */
+
 export function AuthProvider({ children }: Props) {
-  const { state, setState } = useSetState<AuthState>({ user: null, loading: true });
+  const [user, setUser] = useState<UserType | null>(null);
+  const [authUser, setAuthUser] = useState<FirebaseUser | null>(null);
+  const [signInAsUser, setSignInAsUser] = useState<UserType | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const checkUserSession = useCallback(async () => {
-    try {
-      onAuthStateChanged(auth, async (user: AuthState['user']) => {
-        if (user && user.emailVerified) {
-          /*
-           * (1) If skip emailVerified
-           * Remove the condition (if/else) : user.emailVerified
-           */
-          const userProfile = doc(db, 'users', user.uid);
+  /* Use effect section */
+  useEffect(() => {
+    // Get user data from local storage
+    const userLocal = JSON.parse(localStorage.getItem('user') || 'null') as UserType | null;
 
-          const docSnap = await getDoc(userProfile);
+    // Get auth user from local storage
+    const authUserLocal = JSON.parse(localStorage.getItem('authUser') || 'null') as
+      | (FirebaseUser & { loginType: string })
+      | null;
 
-          const profileData = docSnap.data();
-
-          const { accessToken } = user;
-
-          setState({ user: { ...user, ...profileData }, loading: false });
-          axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
-        } else {
-          setState({ user: null, loading: false });
-          delete axios.defaults.headers.common.Authorization;
-        }
-      });
-    } catch (error) {
-      console.error(error);
-      setState({ user: null, loading: false });
+    // Set user data from local storage
+    if (userLocal) {
+      setUser(userLocal);
     }
-  }, [setState]);
+
+    console.log('AuthProvider: Setting up onAuthStateChanged listener');
+
+    const auth = getAuth();
+    let unsubscribe = () => {};
+    onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
+      if (firebaseUser) {
+        console.log('firebaseUser detected in onAuthStateChanged: ', firebaseUser);
+        // Set authUser
+        setAuthUser(firebaseUser);
+
+        let email = firebaseUser.email;
+
+        /* Google login section only */
+        //# By right when login with google, the email will be null
+        if (authUserLocal && authUserLocal.loginType === 'google' && !email) {
+          email = firebaseUser.providerData[0].email;
+        }
+
+        console.log('Determined email for Firestore lookup: ', email);
+        // If the email is still not found, then return
+        if (!email) return;
+        /* Google login section only */
+
+        const userRef = doc(db, 'users', email);
+
+        unsubscribe = onSnapshot(userRef, async (userSnap: DocumentSnapshot) => {
+          if (userSnap.exists()) {
+            const userData = {
+              ...userSnap.data(),
+              id: userSnap.id,
+              uid: firebaseUser.uid,
+            } as UserType;
+            setUser(userData);
+            localStorage.setItem('user', JSON.stringify(userData));
+          } else {
+            clearLocalUser(setUser);
+            return;
+          }
+          setLoading(false);
+        });
+      } else {
+        clearLocalUser(setUser);
+        setLoading(false);
+      }
+    });
+    return () => unsubscribe();
+  }, [authUser]);
 
   useEffect(() => {
-    checkUserSession();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (signInAsUser && signInAsUser.id) {
+      // Logging
+      console.log('Sign in as user id: ', signInAsUser?.id);
+      console.log('Sign in as user data: ', signInAsUser);
 
-  // ----------------------------------------------------------------------
+      const docRef = doc(db, 'users', signInAsUser?.id);
+      const unsubscribe = onSnapshot(docRef, (snapshot: DocumentSnapshot) => {
+        const userData = mapDocSnapshot(snapshot) as UserType | null;
+        if (userData) {
+          setUser(userData);
+        }
+      });
+      return unsubscribe;
+    }
 
-  const checkAuthenticated = state.user ? 'authenticated' : 'unauthenticated';
+    return undefined;
+  }, [signInAsUser]);
+  /* Use effect section */
 
-  const status = state.loading ? 'loading' : checkAuthenticated;
+  // Calculate authentication status
+  const authenticated = !!user && !!authUser;
+  const unauthenticated = !loading && !authenticated;
 
   const memoizedValue = useMemo(
     () => ({
-      user: state.user
-        ? {
-            ...state.user,
-            id: state.user?.uid,
-            accessToken: state.user?.accessToken,
-            displayName: state.user?.displayName,
-            photoURL: state.user?.photoURL,
-            role: state.user?.role ?? 'admin',
-          }
-        : null,
-      checkUserSession,
-      loading: status === 'loading',
-      authenticated: status === 'authenticated',
-      unauthenticated: status === 'unauthenticated',
+      user,
+      authUser,
+      signInAsUser,
+      setUser,
+      setAuthUser,
+      setSignInAsUser,
+      // Add authentication status checking properties
+      loading,
+      authenticated,
+      unauthenticated,
     }),
-    [checkUserSession, state.user, status]
+    [user, authUser, signInAsUser, loading, authenticated, unauthenticated]
   );
 
   return <AuthContext value={memoizedValue}>{children}</AuthContext>;

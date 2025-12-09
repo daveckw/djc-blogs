@@ -1,29 +1,36 @@
-import axios, { endpoints } from 'src/lib/axios';
+import {
+  getPosts as getPostsFromFirestore,
+  getPostByTitle,
+  getLatestPosts as getLatestPostsFromFirestore,
+} from 'src/functions/blogFunctions';
 
 // ----------------------------------------------------------------------
 
 export async function getPosts() {
-  const res = await axios.get(endpoints.post.list);
+  const posts = await getPostsFromFirestore();
 
-  return res.data;
+  return { posts };
 }
 
 // ----------------------------------------------------------------------
 
 export async function getPost(title: string) {
-  const URL = title ? `${endpoints.post.details}?title=${title}` : '';
+  const post = await getPostByTitle(title);
 
-  const res = await axios.get(URL);
-
-  return res.data;
+  return { post };
 }
 
 // ----------------------------------------------------------------------
 
 export async function getLatestPosts(title: string) {
-  const URL = title ? `${endpoints.post.latest}?title=${title}` : '';
+  // First, get the current post to exclude it
+  let excludePostId: string | undefined;
+  if (title) {
+    const currentPost = await getPostByTitle(title);
+    excludePostId = currentPost?.id;
+  }
 
-  const res = await axios.get(URL);
+  const latestPosts = await getLatestPostsFromFirestore(excludePostId, 5);
 
-  return res.data;
+  return { latestPosts };
 }
