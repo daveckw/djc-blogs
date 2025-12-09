@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir:*)",
+      "Bash(xargs:*)",
+      "Bash(npm run build:*)",
+      "Bash(git -C /Users/daveckw/Documents/react-projects/djc-blogs remote:*)",
+      "Bash(git -C /Users/daveckw/Documents/react-projects/djc-blogs init:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git branch:*)",
+      "Bash(git remote add:*)",
+      "Bash(git push:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
