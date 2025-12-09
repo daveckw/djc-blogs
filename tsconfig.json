@@ -4,7 +4,7 @@
     "baseUrl": ".",
     "ignoreDeprecations": "6.0",
     "module": "esnext",
-    "jsx": "preserve",
+    "jsx": "react-jsx",
     "allowJs": true,
     "resolveJsonModule": true,
     /* Build */
@@ -35,7 +35,8 @@
     "next-env.d.ts",
     "**/*.ts",
     "**/*.tsx",
-    ".next/types/**/*.ts"
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"
